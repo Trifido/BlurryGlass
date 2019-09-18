@@ -46,7 +46,7 @@ Shader "Unlit/ShaderTest2"
 				float4 grabPos : TEXCOORD1;
             };
 
-            sampler2D _MainTex; 
+			sampler2D _MainTex, _NormalTex;
             float4 _MainTex_ST;
 
 			#include "LookingThrough.cginc"
@@ -64,15 +64,15 @@ Shader "Unlit/ShaderTest2"
             fixed4 frag (v2f i) : SV_Target
             {
                 // sample the texture
-				fixed3 norm = fixed3(0, 0, 0);
+				fixed3 norm = tex2D(_NormalTex, i.uv);//fixed3(0, 0, 0);
 
-				fixed3 col = ColorBelowWaterBlurH(i.grabPos, norm);
-				fixed4 color = fixed4(col, 0.5);
+				fixed3 col = ColorBelowWaterWithRefractions(i.grabPos, norm);
+				fixed4 color = fixed4(col, 1);
                 return color;
             }
             ENDCG
         }
-
+/*
 		GrabPass { "_VerticalBackground" }
 
 		//VERTICAL PASS
@@ -124,5 +124,6 @@ Shader "Unlit/ShaderTest2"
 			}
 			ENDCG
 		}
+		*/
     }
 }

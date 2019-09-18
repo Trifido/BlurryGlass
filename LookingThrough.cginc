@@ -40,12 +40,12 @@ float3 VerticalGaussianBlur(float2 uvGrab, float3 col, float surfaceDepth)
 
 	for (float ind = 0; ind < SAMPLES; ind++)
 	{ 
-		float offset = (ind / (SAMPLES - 1) - 0.5) * _BlurSize + ;
-		float2 uv = uvGrab + float2(0, offset);
+		float offset = (ind / (SAMPLES - 1) - 0.5) * clamp(_BlurSize, 0.001, 0.1);
+		float2 uv = AlignWithGrabTexel(uvGrab + float2(0, offset));
 		float pixelDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uv));
 		float diffDepth = pixelDepth - surfaceDepth;
 
-		if (diffDepth > 0)
+		if (diffDepth > 0.0f)
 		{
 			float gauss = GaussianFunction(offset, clamp(stdDevSquared+diffDepth, 0.0, 0.1));
 			sum += gauss;
@@ -62,26 +62,49 @@ float3 HorizontalGaussianBlur(float2 uvGrab, float3 col, float surfaceDepth)
 	if (_StandarDeviation == 0)
 		return tex2D(_WaterBackground, uvGrab);
 
-	float sum = 0;
-	float stdDevSquared = _StandarDeviation * _StandarDeviation;
+	float pixelDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uvGrab));
+	float diffDepth = pixelDepth - surfaceDepth;
 
-	for (float ind = 0; ind < SAMPLES; ind++)
-	{
-		float offset = (ind / (SAMPLES - 1) - 0.5) * _BlurSize;
-		float2 uv = uvGrab + float2(offset, 0);
-		float pixelDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uv));
-		float diffDepth = pixelDepth - surfaceDepth;
+	//if (diffDepth > 0.0f)
+	//if(surfaceDepth < pixelDepth) 
+	//{
+	//	pixelDepth /= 20;
+	//	return float3(pixelDepth, pixelDepth, pixelDepth);// tex2D(_WaterBackground, uvGrab);
+	//}
+	//else
+	//	if (surfaceDepth > pixelDepth)
+	//{
+	//	return float3(0.0, 0.0, 1.0);
+	//	float sum = 0;
+	//	float stdDevSquared = _StandarDeviation * _StandarDeviation;
 
-		if (diffDepth > 0)
-		{
-			float gauss = GaussianFunction(offset, clamp(stdDevSquared+diffDepth, 0.0, 0.1));
-			sum += gauss;
-			col += tex2D(_WaterBackground, uv).rgb * gauss;
-		}
-	}
-	col = col / sum;
+	//	for (float ind = 0; ind < SAMPLES; ind++)
+	//	{
+	//		//float ind = 0;
+	//		float offset = (ind / (SAMPLES - 1) - 0.5) * clamp(_BlurSize, 0.001, 0.1);
+	//		float2 uv = AlignWithGrabTexel(uvGrab + float2(offset, 0));
+	//		float SampleDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uvGrab));
+	//		float SamplediffDepth = SampleDepth - surfaceDepth;
+	//		SamplediffDepth /= 20;
 
-	return col;
+	//		if (SamplediffDepth > 0.0f)
+	//		{
+	//			float gauss = GaussianFunction(offset, clamp(stdDevSquared, 0.0, 0.1));
+	//			sum += gauss;
+	//			col += float3(SamplediffDepth, SamplediffDepth, SamplediffDepth) *gauss;//tex2D(_WaterBackground, uv).rgb*gauss;
+	//		}
+	//	}
+
+	//	col = col / sum;
+
+	//	/*float pixelDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uvGrab));
+	//	float diffDepth = pixelDepth - surfaceDepth;*/
+	//	//col = float3(pixelDepth, pixelDepth, pixelDepth);
+	//	//col = col / 20;
+	//	return col;
+	//}
+		return col;
+
 }
 
 float3 ColorBelowWater(float4 screenPos) {
@@ -162,7 +185,7 @@ float3 ColorBelowWaterBlurH(float4 screenPos, float3 tangentSpaceNormal) {
 	uv = AlignWithGrabTexel((screenPos.xy + uvOffset) / screenPos.w);
 
 	float3 color2 = 0;
-	float3 color = HorizontalGaussianBlur( uv, color2, surfaceDepth);
+	float3 color = HorizontalGaussianBlur(uv, color2, surfaceDepth);
 	return color; 
 }
 
