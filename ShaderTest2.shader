@@ -46,7 +46,7 @@ Shader "Unlit/ShaderTest2"
 				float4 grabPos : TEXCOORD1;
             };
 
-            sampler2D _MainTex; 
+            sampler2D _MainTex, _NormalTex;
             float4 _MainTex_ST;
 
 			#include "LookingThrough.cginc"
@@ -54,18 +54,17 @@ Shader "Unlit/ShaderTest2"
             v2f vert (appdata v)
             {
                 v2f o;
-				o.vertex = UnityObjectToClipPos(v.vertex);
-                //o.vertex = UnityObjectToClipPos(v.vertex);
+				o.vertex = UnityObjectToClipPos(v.vertex); 
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex); 
 				o.grabPos = ComputeGrabScreenPos(o.vertex);
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
-            {
-                // sample the texture
-				fixed3 norm = fixed3(0, 0, 0);
-
+			fixed4 frag(v2f i) : SV_Target
+			{
+				// sample the texture
+				fixed3 norm = tex2D(_NormalTex, i.uv);//fixed3(0, 0, 0);
+				float4 grabPos2 = ComputeGrabScreenPos(i.vertex);
 				fixed3 col = ColorBelowWaterBlurH(i.grabPos, norm);
 				fixed4 color = fixed4(col, 0.5);
                 return color;
@@ -119,7 +118,7 @@ Shader "Unlit/ShaderTest2"
 				fixed3 norm = tex2D(_NormalTex, i.uv);
 
 				fixed3 col = ColorBelowWaterBlurV(i.grabPos, norm);
-				fixed4 color = fixed4(col, 0.5) * _Color * tex2D(_MainTex, i.uv);
+				fixed4 color = fixed4(col, 0.5) *_Color* tex2D(_MainTex, i.uv);
 				return color;
 			}
 			ENDCG
