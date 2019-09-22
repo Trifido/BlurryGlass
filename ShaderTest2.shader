@@ -6,14 +6,23 @@ Shader "Unlit/ShaderTest2"
     {
 		_Color("Color", Color) = (1,1,1,1)
         _MainTex ("Texture", 2D) = "white" {}
-		_NormalTex("Normal Map", 2D) = "white"{}
+		_DistortionTex("Distortion Map", 2D) = "white"{}
 
+		//Gaussian Blur two steps
+		_StandarDeviation("Standard Deviation (Gauss only)", Range(0, 1)) = 0.02
+		_BlurSize("Blur Size", Range(0,0.1)) = 0 
+
+		//Fog Material & Distortion
 		_WaterFogColor("Water Fog Color", Color) = (0, 0, 0, 0)
 		_WaterFogDensity("Water Fog Density", Range(0, 2)) = 0.1
-		_RefractionStrength("Refraction Strength", Range(0, 1)) = 0.25
+		_RefractionStrength("Refraction Strength", Range(0, 1)) = 0.25 
 
-		_StandarDeviation("Standard Deviation (Gauss only)", Range(0, 0.1)) = 0.02
-		_BlurSize("Blur Size", Range(0,0.1)) = 0
+		//Wave Simulator
+		 [Toggle] _WaveSimulator("Wave Simulator", Float) = 0
+		_FirstWave("First Wave (dir, steepness, wavelength)", Vector) = (1, 0, 0.5, 10)
+		_SecondWave("Second Wave (dir, steepness, wavelength)", Vector) = (0,1,0.25,20)
+		_ThirdWave("Third Wave (dir, steepness, wavelength)", Vector) = (1,1,0.15,10)
+		_Speed("Speed", Float) = 1
     }
     SubShader
     {
@@ -21,8 +30,9 @@ Shader "Unlit/ShaderTest2"
         LOD 100
 
 		Cull Off
+		ZWrite On 
 
-		GrabPass { "_WaterBackground" }
+		GrabPass { "_Background" }
 
 		//HORIZONTAL PASS
         Pass
@@ -46,14 +56,23 @@ Shader "Unlit/ShaderTest2"
 				float4 grabPos : TEXCOORD1;
             };
 
-            sampler2D _MainTex, _NormalTex;
+            sampler2D _MainTex;
             float4 _MainTex_ST;
 
 			#include "LookingThrough.cginc"
+			#include "Flow.cginc"
 
             v2f vert (appdata v)
             {
                 v2f o;
+
+				if (_WaveSimulator > 0)
+				{
+					v.vertex += WaveSimulation(_FirstWave, v.vertex);
+					v.vertex += WaveSimulation(_SecondWave, v.vertex);
+					v.vertex += WaveSimulation(_ThirdWave, v.vertex);
+				}
+
 				o.vertex = UnityObjectToClipPos(v.vertex); 
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex); 
 				o.grabPos = ComputeGrabScreenPos(o.vertex);
@@ -62,17 +81,15 @@ Shader "Unlit/ShaderTest2"
 
 			fixed4 frag(v2f i) : SV_Target
 			{
-				// sample the texture
-				fixed3 norm = tex2D(_NormalTex, i.uv);//fixed3(0, 0, 0);
-				float4 grabPos2 = ComputeGrabScreenPos(i.vertex);
-				fixed3 col = ColorBelowWaterBlurH(i.grabPos, norm);
+				// sample the texture 
+				fixed3 col = ColorBelowWaterBlurH(i.grabPos, fixed3(0, 0, 0));
 				fixed4 color = fixed4(col, 0.5);
                 return color;
             }
             ENDCG
         }
-/*
-		GrabPass { "_VerticalBackground" }
+
+		GrabPass { "_HorizontalBackground" }
 
 		//VERTICAL PASS
 		Pass
@@ -98,15 +115,27 @@ Shader "Unlit/ShaderTest2"
 
 			sampler2D _MainTex;
 			fixed4 _Color;
-			sampler2D _NormalTex;
+			sampler2D _DistortionTex;
 			float4 _MainTex_ST;
 
-			#include "LookingThrough.cginc"
+			#include "LookingThrough.cginc" 
+			#include "Flow.cginc"
 
 			v2f vert(appdata v)
-			{
+			{ 
 				v2f o;
+
+				if (_WaveSimulator > 0)
+				{
+					v.vertex += WaveSimulation(_FirstWave, v.vertex);
+					v.vertex += WaveSimulation(_SecondWave, v.vertex);
+					v.vertex += WaveSimulation(_ThirdWave, v.vertex);
+				}
+
 				o.vertex = UnityObjectToClipPos(v.vertex); 
+
+				
+
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				o.grabPos = ComputeGrabScreenPos(o.vertex);
 				return o;
@@ -115,14 +144,17 @@ Shader "Unlit/ShaderTest2"
 			fixed4 frag(v2f i) : SV_Target
 			{
 				// sample the texture
-				fixed3 norm = tex2D(_NormalTex, i.uv);
+				//fixed3 norm = WaveNormal();
+				fixed3 distortion = tex2D(_DistortionTex, i.uv);
 
-				fixed3 col = ColorBelowWaterBlurV(i.grabPos, norm);
-				fixed4 color = fixed4(col, 0.5) *_Color* tex2D(_MainTex, i.uv);
-				return color;
+				fixed3 col = ColorBelowWaterBlurV(i.grabPos, distortion);
+
+				if (_WaterFogDensity > 0.0)
+					return fixed4(col, 0.5);
+				else
+					return fixed4(col, 0.5) *_Color* tex2D(_MainTex, i.uv);
 			}
 			ENDCG
 		}
-		*/
     }
 }
